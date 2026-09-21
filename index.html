@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PEPSIをつぶせ！</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #d9d9d9;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    touch-action: manipulation;
+  }
+
+  #game {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(#eaf7ff 0 62%, #b7b7b7 62% 100%);
+  }
+
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .badge {
+    background: rgba(255,255,255,.92);
+    border-radius: 14px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 18px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.15);
+  }
+
+  #factory {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 18%;
+    height: 44%;
+    min-height: 260px;
+  }
+
+  .back-wall {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 58%;
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.035) 0 2px, transparent 2px 45px),
+      linear-gradient(#f8f8f8, #e2e2e2);
+    border-bottom: 5px solid #8b8b8b;
+  }
+
+  .belt {
+    position: absolute;
+    left: -3%;
+    right: -3%;
+    bottom: 13%;
+    height: 90px;
+    background:
+      repeating-linear-gradient(90deg, #3d3d3d 0 34px, #555 34px 68px),
+      #444;
+    border-top: 9px solid #222;
+    border-bottom: 10px solid #222;
+    box-shadow: inset 0 7px 0 rgba(255,255,255,.08);
+  }
+
+  .belt::before, .belt::after {
+    content: "";
+    position: absolute;
+    top: 16px;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #888 0 18%, #333 20% 55%, #111 57%);
+  }
+  .belt::before { left: 3%; }
+  .belt::after { right: 3%; }
+
+  #spawnArea {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 13%;
+    height: 125px;
+    pointer-events: none;
+  }
+
+  .can {
+    position: absolute;
+    width: 82px;
+    height: 122px;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    transform-origin: 50% 90%;
+    filter: drop-shadow(0 7px 4px rgba(0,0,0,.3));
+  }
+
+  .can.pepsi { width: 72px; height: 108px; }
+  .can.crushed {
+    animation: crush .22s forwards;
+  }
+
+  @keyframes crush {
+    0% { transform: scale(1) rotate(0); }
+    35% { transform: scale(1.18,.45) rotate(-5deg); }
+    100% { transform: scale(1.35,.25) rotate(4deg); opacity: .75; }
+  }
+
+  #hammer {
+    position: absolute;
+    z-index: 15;
+    top: 7%;
+    left: 50%;
+    width: 100px;
+    height: 150px;
+    transform: translateX(-50%) rotate(-18deg);
+    transform-origin: 50% 85%;
+    pointer-events: none;
+    transition: transform .12s ease-out;
+  }
+
+  #hammer .handle {
+    position: absolute;
+    left: 43px;
+    top: 15px;
+    width: 18px;
+    height: 112px;
+    background: linear-gradient(90deg,#9a5b2c,#d28a49,#8b4b20);
+    border-radius: 9px;
+  }
+
+  #hammer .head {
+    position: absolute;
+    left: 10px;
+    top: 0;
+    width: 82px;
+    height: 43px;
+    border-radius: 12px;
+    background: linear-gradient(#777,#222);
+    box-shadow: 0 5px 5px rgba(0,0,0,.35);
+  }
+
+  #hammer.swing {
+    transform: translateX(-50%) rotate(25deg) translateY(90px);
+  }
+
+  #instructions {
+    position: absolute;
+    left: 50%;
+    top: 4%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: min(92%, 520px);
+    text-align: center;
+    font-weight: 800;
+    font-size: clamp(16px, 4vw, 23px);
+    color: #222;
+    background: rgba(255,255,255,.85);
+    padding: 8px 12px;
+    border-radius: 14px;
+  }
+
+  #startScreen, #gameOver {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.55);
+  }
+
+  .panel {
+    width: min(90%, 430px);
+    padding: 28px 22px;
+    border-radius: 24px;
+    background: white;
+    text-align: center;
+    box-shadow: 0 15px 45px rgba(0,0,0,.3);
+  }
+
+  .panel h1 {
+    margin: 0 0 12px;
+    font-size: 32px;
+  }
+
+  .panel p {
+    line-height: 1.7;
+    margin: 8px 0 20px;
+  }
+
+  button {
+    border: 0;
+    border-radius: 16px;
+    padding: 14px 28px;
+    font-size: 20px;
+    font-weight: 900;
+    background: #1677ff;
+    color: white;
+    box-shadow: 0 5px 0 #0755bf;
+    cursor: pointer;
+  }
+
+  button:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #0755bf;
+  }
+
+  #gameOver { display: none; }
+
+  #dangerLine {
+    position: absolute;
+    z-index: 5;
+    right: 0;
+    top: 18%;
+    height: 44%;
+    width: 8px;
+    background: #ff3030;
+    box-shadow: 0 0 14px rgba(255,0,0,.7);
+  }
+
+  .hint {
+    font-size: 14px;
+    color: #666;
+  }
+
+  @media (max-width: 600px) {
+    #factory { top: 20%; height: 40%; }
+    #dangerLine { top: 20%; height: 40%; }
+    #hammer { top: 8%; transform: translateX(-50%) rotate(-18deg) scale(.85); }
+    #hammer.swing { transform: translateX(-50%) rotate(25deg) translateY(80px) scale(.85); }
+    .can { width: 66px; height: 98px; }
+    .can.pepsi { width: 60px; height: 90px; }
+    .belt { height: 76px; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="hud">
+    <div class="badge">スコア：<span id="score">0</span></div>
+    <div class="badge">ミス：<span id="miss">0</span></div>
+  </div>
+
+  <div id="instructions">🥤 コカ・コーラはそのまま！　🔨 PEPSIをタップしてつぶせ！</div>
+
+  <div id="factory">
+    <div class="back-wall"></div>
+    <div class="belt"></div>
+    <div id="spawnArea"></div>
+  </div>
+
+  <div id="dangerLine"></div>
+  <div id="hammer">
+    <div class="head"></div>
+    <div class="handle"></div>
+  </div>
+
+  <div id="startScreen">
+    <div class="panel">
+      <h1>🥤 PEPSIをつぶせ！</h1>
+      <p>
+        ベルトコンベアから缶が流れてくる！<br>
+        <b>PEPSIだけ</b>をタップしてハンマーでつぶそう。<br>
+        コカ・コーラは触らなくてOK！
+      </p>
+      <button id="startBtn">ゲームスタート</button>
+    </div>
+  </div>
+
+  <div id="gameOver">
+    <div class="panel">
+      <h1>ゲームオーバー！</h1>
+      <p>PEPSIが端まで行ってしまった！</p>
+      <p style="font-size:28px;font-weight:900;">スコア：<span id="finalScore">0</span></p>
+      <button id="restartBtn">もう一回</button>
+      <p class="hint">タップでPEPSIを狙おう！</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const spawnArea = document.getElementById("spawnArea");
+const hammer = document.getElementById("hammer");
+const scoreEl = document.getElementById("score");
+const missEl = document.getElementById("miss");
+const gameOverScreen = document.getElementById("gameOver");
+const startScreen = document.getElementById("startScreen");
+const finalScore = document.getElementById("finalScore");
+
+let score = 0;
+let miss = 0;
+let running = false;
+let cans = [];
+let spawnTimer = null;
+let lastTime = 0;
+let speed = 150;
+let nextSpawn = 0;
+
+function resetGame() {
+  cans.forEach(c => c.el.remove());
+  cans = [];
+  score = 0;
+  miss = 0;
+  speed = 150;
+  nextSpawn = 0;
+  scoreEl.textContent = score;
+  missEl.textContent = miss;
+}
+
+function startGame() {
+  resetGame();
+  running = true;
+  startScreen.style.display = "none";
+  gameOverScreen.style.display = "none";
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function endGame() {
+  running = false;
+  clearTimeout(spawnTimer);
+  finalScore.textContent = score;
+  gameOverScreen.style.display = "flex";
+}
+
+function spawnCan() {
+  if (!running) return;
+
+  const isPepsi = Math.random() < 0.5;
+  const img = document.createElement("img");
+  img.className = "can" + (isPepsi ? " pepsi" : "");
+  img.src = isPepsi ? "assets/pepsi.jpg" : "assets/coca.jpg";
+  img.alt = isPepsi ? "PEPSI" : "Coca-Cola";
+
+  const areaWidth = spawnArea.clientWidth;
+  const startX = -100;
+
+  img.style.left = startX + "px";
+  img.style.bottom = "0px";
+  spawnArea.appendChild(img);
+
+  const can = {
+    el: img,
+    x: startX,
+    y: 0,
+    pepsi: isPepsi,
+    crushed: false
+  };
+
+  img.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (!running || can.crushed) return;
+
+    // Only PEPSI should be hit.
+    if (can.pepsi) {
+      crushCan(can);
+    } else {
+      // Accidentally hitting Coca-Cola counts as a mistake.
+      miss++;
+      missEl.textContent = miss;
+      flash("コカ・コーラだよ！", "#e22");
+    }
+  });
+
+  cans.push(can);
+
+  // Spawn gets faster as score increases.
+  const delay = Math.max(420, 1100 - score * 15);
+  spawnTimer = setTimeout(spawnCan, delay);
+}
+
+function crushCan(can) {
+  can.crushed = true;
+  score++;
+  scoreEl.textContent = score;
+
+  can.el.classList.add("crushed");
+  hammer.classList.add("swing");
+  setTimeout(() => hammer.classList.remove("swing"), 150);
+
+  setTimeout(() => {
+    if (can.el) can.el.remove();
+    cans = cans.filter(c => c !== can);
+  }, 230);
+
+  // Gradually increase speed.
+  speed = Math.min(310, 150 + score * 4);
+}
+
+function flash(text, color) {
+  const f = document.createElement("div");
+  f.textContent = text;
+  f.style.cssText = `
+    position:fixed; left:50%; top:25%; transform:translateX(-50%);
+    z-index:200; padding:10px 18px; border-radius:14px;
+    background:${color}; color:white; font-weight:900; font-size:20px;
+  `;
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 500);
+}
+
+function loop(now) {
+  if (!running) return;
+
+  const dt = Math.min((now - lastTime) / 1000, 0.04);
+  lastTime = now;
+
+  const width = spawnArea.clientWidth;
+
+  for (const can of [...cans]) {
+    if (can.crushed) continue;
+
+    can.x += speed * dt;
+    can.el.style.left = can.x + "px";
+
+    // If any PEPSI reaches the right edge, game over.
+    const rightEdge = can.x + can.el.getBoundingClientRect().width;
+    if (can.pepsi && rightEdge >= width - 5) {
+      endGame();
+      return;
+    }
+
+    // Coca-Cola simply disappears after passing the end.
+    if (!can.pepsi && rightEdge >= width + 80) {
+      can.el.remove();
+      cans = cans.filter(c => c !== can);
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+document.getElementById("startBtn").addEventListener("click", startGame);
+document.getElementById("restartBtn").addEventListener("click", startGame);
+
+// Also allow keyboard control for PC testing:
+// Space swings the hammer, and clicking/tapping cans is still the main control.
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && running) {
+    hammer.classList.add("swing");
+    setTimeout(() => hammer.classList.remove("swing"), 150);
+  }
+});
+
+// Start spawning only after the game starts.
+const originalStartGame = startGame;
+startGame = function() {
+  originalStartGame();
+  clearTimeout(spawnTimer);
+  setTimeout(spawnCan, 500);
+};
+</script>
+</body>
+</html>
