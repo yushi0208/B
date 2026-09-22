@@ -326,12 +326,23 @@ function resetGame() {
 }
 
 function startGame() {
+
   resetGame();
+
   running = true;
+
   startScreen.style.display = "none";
+
   gameOverScreen.style.display = "none";
+
   lastTime = performance.now();
+
+  clearTimeout(spawnTimer);
+
+  spawnTimer = setTimeout(spawnCan, 500);
+
   requestAnimationFrame(loop);
+
 }
 
 function endGame() {
